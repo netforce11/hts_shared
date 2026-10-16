@@ -3,10 +3,10 @@
 
 from __future__ import annotations
 import logging
-from config.settings import RiskConfig
-from core.bus import DataBus
-from core.topics import Topics
-from core.order_validator import OrderRequest, ValidationResult
+from .bus import DataBus
+from .topics import Topics
+from .order_validator import OrderRequest, ValidationResult
+from .risk_config import RiskConfig
 
 log = logging.getLogger(__name__)
 

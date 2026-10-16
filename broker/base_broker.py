@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from core.order_validator import OrderRequest
+from ..core.order_validator import OrderRequest
 
 
 class BaseBroker(ABC):

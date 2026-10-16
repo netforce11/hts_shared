@@ -5,9 +5,9 @@ from __future__ import annotations
 import queue
 import threading
 import logging
-from core.bus import DataBus
-from core.topics import Topics
-from calc.indicators import SMA, EMA, RSI
+from ..core.bus import DataBus
+from ..core.topics import Topics
+from .indicators import SMA, EMA, RSI
 
 log = logging.getLogger(__name__)
 

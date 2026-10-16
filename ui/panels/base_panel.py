@@ -4,7 +4,7 @@
 from __future__ import annotations
 from PyQt6.QtWidgets import QDockWidget, QWidget, QVBoxLayout
 from PyQt6.QtCore import Qt, QMetaObject, Q_ARG, pyqtSlot
-from core.bus import DataBus
+from ...core.bus import DataBus
 
 
 class BasePanel(QDockWidget):

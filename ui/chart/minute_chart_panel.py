@@ -19,9 +19,9 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QDate, pyqtSlot
 from PyQt6.QtGui  import QFont
 
-from ui.panels.base_panel import BasePanel
-from core.bus import DataBus
-from core.topics import Topics
+from ..panels.base_panel import BasePanel
+from ...core.bus import DataBus
+from ...core.topics import Topics
 
 
 class MinuteChartPanel(BasePanel):
@@ -215,7 +215,7 @@ class MinuteChartPanel(BasePanel):
             return
         try:
             import pyqtgraph as pg
-            from ui.chart.candle import CandlestickItem
+            from .candle import CandlestickItem
 
             self._p1.clear()
             self._p2.clear()
@@ -259,7 +259,7 @@ class MinuteChartPanel(BasePanel):
         if data.get("symbol", "").upper() != self._symbol:
             return
         import time
-        from ui.chart.data_source import Candle
+        from .data_source import Candle
         try:
             ET = timezone(timedelta(hours=-4))
             minute = data.get("minute", "")
