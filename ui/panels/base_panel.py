@@ -1,13 +1,14 @@
 # ui/panels/base_panel.py
-# 모든 패널의 부모 — 헤더/테마/DataBus 구독 + 단축키 생명주기 자동 관리
+# 모든 패널의 부모 — QWidget 기반 (QMdiSubWindow 안에 embed)
+# 키움 영웅문 스타일: 자유 배치, 픽셀 정밀 이동/리사이즈
 
 from __future__ import annotations
-from PyQt6.QtWidgets import QDockWidget, QWidget, QVBoxLayout
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
 from PyQt6.QtCore import Qt, QMetaObject, Q_ARG, pyqtSlot
 from ...core.bus import DataBus
 
 
-class BasePanel(QDockWidget):
+class BasePanel(QWidget):
     """
     상속 규칙:
       - PANEL_ID 반드시 오버라이드
@@ -17,46 +18,32 @@ class BasePanel(QDockWidget):
     """
 
     PANEL_ID: str = "base"
+    TITLE: str = "패널"
+    DEFAULT_SIZE: tuple[int, int] = (400, 300)   # 기본 (w, h)
 
-    def __init__(
-        self,
-        title: str,
-        bus: DataBus,
-        parent: QWidget | None = None,
-    ) -> None:
-        super().__init__(title, parent)
+    def __init__(self, bus: DataBus, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
         self._bus = bus
-        self._shortcut_mgr = None   # MainWindow에서 set_shortcut_manager() 호출
+        self._shortcut_mgr = None
         self._setup_ui()
-        self.visibilityChanged.connect(self._on_visibility_changed)
 
     def _setup_ui(self) -> None:
         self.setObjectName(self.PANEL_ID)
-        self.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
-        self.setFeatures(
-            QDockWidget.DockWidgetFeature.DockWidgetMovable |
-            QDockWidget.DockWidgetFeature.DockWidgetFloatable |
-            QDockWidget.DockWidgetFeature.DockWidgetClosable
-        )
-        container = QWidget()
-        self._layout = QVBoxLayout(container)
-        self._layout.setContentsMargins(4, 4, 4, 4)
-        self.setWidget(container)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(2)
+        self._layout = layout
 
     # ── 단축키 선언 (각 패널에서 오버라이드) ──────────────
     def register_shortcuts(self) -> list[tuple[str, callable]]:
-        """
-        반환 형식: [("F1", self.some_method), ("Ctrl+B", self.buy), ...]
-        빈 리스트 반환 시 단축키 없음.
-        """
         return []
 
     def set_shortcut_manager(self, mgr) -> None:
-        """MainWindow가 패널 생성 후 즉시 호출"""
         self._shortcut_mgr = mgr
         mgr.register_panel(self)
 
-    # ── 포커스 인/아웃 → ShortcutManager에 알림 ──────────
+    # ── 포커스 → ShortcutManager 알림 ────────────────────
     def focusInEvent(self, event) -> None:
         if self._shortcut_mgr:
             self._shortcut_mgr.set_active(self)
@@ -64,7 +51,6 @@ class BasePanel(QDockWidget):
 
     # ── 스레드 안전 UI 콜백 ────────────────────────────────
     def _invoke_main(self, slot_name: str, data) -> None:
-        """Core 스레드 → Qt 메인 스레드로 안전하게 전달"""
         QMetaObject.invokeMethod(
             self,
             slot_name,
@@ -72,11 +58,7 @@ class BasePanel(QDockWidget):
             Q_ARG(object, data),
         )
 
-    # ── 패널 닫기/숨기기 ──────────────────────────────────
-    def _on_visibility_changed(self, visible: bool) -> None:
-        if not visible:
-            self._cleanup()
-
+    # ── 패널 종료 ──────────────────────────────────────────
     def closeEvent(self, event) -> None:
         self._cleanup()
         super().closeEvent(event)

@@ -36,7 +36,7 @@ class MinuteChartPanel(BasePanel):
     DN_COLOR = "#EF5350"
 
     def __init__(self, bus: DataBus, parent=None) -> None:
-        super().__init__("분봉 차트", bus, parent)
+        super().__init__(bus, parent)
         self._symbol   = "AAPL"
         self._candles  = []
         self._loader   = None
