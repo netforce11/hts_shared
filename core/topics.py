@@ -45,7 +45,12 @@ class Topics:
     RISK_WARNING       = "risk.warning"
 
     # ── 시스템 ───────────────────────────────────────────
-    SYSTEM_STATUS      = "system.status"
-    SYSTEM_ERROR       = "system.error"
-    BROKER_CONNECTED   = "broker.connected"
+    SYSTEM_STATUS       = "system.status"
+    SYSTEM_ERROR        = "system.error"
+    BROKER_CONNECTED    = "broker.connected"
     BROKER_DISCONNECTED = "broker.disconnected"
+
+    # ── 주문/DB 이벤트 ────────────────────────────────────
+    ORDER_PLACED    = "order.placed"
+    ORDER_FILLED    = "order.filled"
+    ORDER_CANCELLED = "order.cancelled"
