@@ -63,15 +63,8 @@ class BasePanel(QWidget):
         self._shortcut_mgr = mgr
         mgr.register_panel(self)
 
-    def _install_shortcuts(self) -> None:
-        """ShortcutManager가 호출 — 이 패널이 활성화될 때 단축키 활성화"""
-        for key, fn in self.register_shortcuts():
-            sc = QShortcut(QKeySequence(key), self)
-            sc.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-            sc.activated.connect(fn)
-            self._shortcuts.append(sc)
-
     def _remove_shortcuts(self) -> None:
+        """ShortcutManager가 cleanup 시 호출"""
         for sc in self._shortcuts:
             sc.setEnabled(False)
             sc.deleteLater()

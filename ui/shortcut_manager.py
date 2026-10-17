@@ -12,9 +12,20 @@ log = logging.getLogger(__name__)
 
 class ShortcutManager:
     """
+    패널별 단축키 관리 — 포커스를 받은 패널의 단축키만 활성화.
+
+    동작 흐름:
+      1. panel.set_shortcut_manager(mgr) 호출
+         → mgr.register_panel(panel) 내부 호출
+         → register_shortcuts() 읽어 QShortcut 생성 (비활성 상태)
+      2. 패널 클릭/포커스 → BasePanel.focusInEvent
+         → mgr.set_active(panel)
+         → 이전 패널 단축키 disabled, 현재 패널 단축키 enabled
+      3. 패널 닫힘 → BasePanel._cleanup → mgr.unregister_panel
+         → QShortcut 완전 제거
+
+    같은 키(예: Alt+=)를 모든 패널이 가져도 충돌 없음.
     MainWindow에서 하나만 생성.
-    활성 패널 전환 시 이전 패널 단축키 비활성화 → 새 패널 단축키 활성화.
-    같은 키를 여러 패널이 써도 충돌 없음.
     """
 
     def __init__(self, main_window: QWidget) -> None:
