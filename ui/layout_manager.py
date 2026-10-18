@@ -145,7 +145,10 @@ class PanelLayoutManager:
             log.warning("place: 패널 '%s' 없음", panel_id)
             return
         sub.setGeometry(QRect(_snap(x), _snap(y), _snap(w), _snap(h)))
-        sub.show()
+        sub.showNormal()
+        w = sub.widget()
+        if w:
+            w.show()
 
     # ── 표시/숨김 ───────────────────────────────────────
     def show_panel(self, panel_id: str, visible: bool) -> None:
@@ -163,7 +166,11 @@ class PanelLayoutManager:
     def bring_to_front(self, panel_id: str) -> None:
         sub = self._subs.get(panel_id)
         if sub:
-            sub.setVisible(True)
+            sub.showNormal()          # 숨겨진 상태에서도 완전히 표시
+            w = sub.widget()
+            if w:
+                w.show()              # 내부 위젯도 명시적으로 표시
+                w.update()            # 강제 리페인트
             self._mdi.setActiveSubWindow(sub)
             sub.raise_()
 
@@ -294,9 +301,15 @@ class PanelLayoutManager:
             g = PanelGeometry(**raw)
             sub.setGeometry(QRect(_snap(g.x), _snap(g.y),
                                   _snap(g.w), _snap(g.h)))
-            sub.setVisible(g.visible)
             if g.maximized:
                 sub.showMaximized()
+            elif g.visible:
+                sub.showNormal()
+                w = sub.widget()
+                if w:
+                    w.show()
+            else:
+                sub.hide()
 
         for tg in tab_groups:
             pids = [p for p in tg.get("pids", []) if p in self._subs]
