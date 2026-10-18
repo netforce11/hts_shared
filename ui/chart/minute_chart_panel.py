@@ -15,6 +15,7 @@ from datetime  import date, datetime, timezone, timedelta
 from PyQt6.QtWidgets import (
     QHBoxLayout, QVBoxLayout, QSplitter,
     QWidget, QLabel, QPushButton, QComboBox,
+    QButtonGroup, QRadioButton,
 )
 from PyQt6.QtCore import Qt, QDate, pyqtSlot
 from PyQt6.QtGui  import QFont
@@ -99,6 +100,28 @@ class MinuteChartPanel(BasePanel):
         nav.addWidget(btn_next)
         lay.addLayout(nav)
 
+        # ── 일봉 개수 선택 (Daily 모드 전용) ──────────────────
+        self._daily_period_w = QWidget()
+        dp_lay = QVBoxLayout(self._daily_period_w)
+        dp_lay.setContentsMargins(0, 4, 0, 0)
+        dp_lay.setSpacing(2)
+        dp_lay.addWidget(QLabel("일봉 기간"))
+
+        self._daily_period_grp = QButtonGroup(self)
+        PERIODS = [60, 90, 120, 150]
+        DEFAULT = 150
+        for days in PERIODS:
+            rb = QRadioButton(f"{days}일")
+            rb.setProperty("days", days)
+            if days == DEFAULT:
+                rb.setChecked(True)
+            self._daily_period_grp.addButton(rb)
+            dp_lay.addWidget(rb)
+
+        self._daily_period_grp.buttonClicked.connect(self._on_daily_period_changed)
+        self._daily_period_w.setVisible(False)   # 분봉 모드에서는 숨김
+        lay.addWidget(self._daily_period_w)
+
         lay.addStretch()
         return w
 
@@ -133,7 +156,11 @@ class MinuteChartPanel(BasePanel):
 
         header_w = QWidget()
         header_w.setLayout(header)
-        header_w.setFixedHeight(32)        # Max 아닌 Fixed — Qt가 0으로 축소하는 것 방지
+        header_w.setFixedHeight(32)
+        # 명시적 배경색 — 없으면 부모 배경과 동화되어 버튼이 안 보임
+        header_w.setStyleSheet(
+            "QWidget { background-color: #1E2A3A; border-bottom: 1px solid #334155; }"
+        )
         lay.addWidget(header_w)
 
         # ── 차트 그래픽 영역 ─────────────────────────────────
@@ -198,9 +225,11 @@ class MinuteChartPanel(BasePanel):
         self._btn_minute.setChecked(mode == "minute")
         self._btn_daily.setChecked(mode == "daily")
 
-        # 캘린더 비활성화 (일봉 모드에서는 날짜 선택 의미 없음)
+        # 캘린더/일봉기간 위젯 표시 전환
         if hasattr(self, "_calendar"):
             self._calendar.setEnabled(mode == "minute")
+        if hasattr(self, "_daily_period_w"):
+            self._daily_period_w.setVisible(mode == "daily")
 
         self._candles  = []
         self._live_bar = None
@@ -270,7 +299,22 @@ class MinuteChartPanel(BasePanel):
         except NotImplementedError:
             self._set_status("❌ _make_minute_loader 미구현")
 
-    def _load_daily(self, days: int = 60) -> None:
+    def _get_daily_days(self) -> int:
+        """선택된 일봉 기간 반환 (기본 150)"""
+        if hasattr(self, "_daily_period_grp"):
+            btn = self._daily_period_grp.checkedButton()
+            if btn:
+                return btn.property("days")
+        return 150
+
+    def _on_daily_period_changed(self) -> None:
+        """일봉 기간 라디오버튼 변경 시 재조회"""
+        if self._chart_mode == "daily":
+            self._load_daily(self._get_daily_days())
+
+    def _load_daily(self, days: int = 0) -> None:
+        if days <= 0:
+            days = self._get_daily_days()
         self._stop_loader()
         self._set_status(f"⏳ {self._symbol} 일봉 로딩 중 ({days}일)...")
         self._candles  = []
