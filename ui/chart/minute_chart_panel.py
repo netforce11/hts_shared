@@ -316,6 +316,10 @@ class MinuteChartPanel(BasePanel):
             import pyqtgraph as pg
             from .candle import CandlestickItem
 
+            # autoVisible(y=False): 사용자 스크롤/줌 후 Y축이 자동 재계산되어
+            # 캔들이 "튀는" 현상 방지 (Tradier chart_render.py 동일 패턴)
+            self._p1.getViewBox().setAutoVisible(y=False)
+
             self._p1.clear()
             self._p2.clear()
             self._candle_item = None
@@ -347,17 +351,17 @@ class MinuteChartPanel(BasePanel):
             self._p2.addItem(bars)
             self._vol_bars = bars
 
-            # Y/X 범위
+            # Y/X 범위 — Tradier 방식: min span = price * 0.5%, XRange 여백 ±2.5
             lows  = [c.l for c in display]
             highs = [c.h for c in display]
             y_min, y_max = min(lows), max(highs)
-            span  = max(y_max - y_min, y_max * 0.001)
-            pad   = span * 0.05
+            span  = max(y_max - y_min, y_max * 0.005)   # 최소 0.5% 범위 보장
+            pad   = span * 0.1
             self._p1.setYRange(y_min - pad, y_max + pad, padding=0)
-            self._p1.setXRange(-1, len(display) + 1, padding=0)
+            self._p1.setXRange(-0.5, len(display) + 2.5, padding=0)
             if vs:
                 self._p2.setYRange(0, max(vs) * 1.1, padding=0)
-                self._p2.setXRange(-1, len(display) + 1, padding=0)
+                self._p2.setXRange(-0.5, len(display) + 2.5, padding=0)
 
             # x축 레이블
             self._set_x_ticks(display)
@@ -395,15 +399,18 @@ class MinuteChartPanel(BasePanel):
                                               x_offset=len(self._candles))
             self._p1.addItem(self._live_item)
 
-            # Y 범위: 기존 범위에 live bar 포함
+            # Y 범위: 기존 범위에 live bar 포함 (min span 0.5%)
             valid = [c for c in self._candles if c.h > 0 and c.l > 0]
             if valid:
                 all_l = [c.l for c in valid] + [lc.l]
                 all_h = [c.h for c in valid] + [lc.h]
                 y_min, y_max = min(all_l), max(all_h)
-                span = max(y_max - y_min, y_max * 0.001)
-                pad  = span * 0.05
+                span = max(y_max - y_min, y_max * 0.005)
+                pad  = span * 0.1
                 self._p1.setYRange(y_min - pad, y_max + pad, padding=0)
+            # X 범위: live봉 포함한 범위로 확장
+            x_end = len(self._candles) + 1   # live bar 위치 + 여백
+            self._p1.setXRange(-0.5, x_end + 1.5, padding=0)
 
         except Exception as e:
             self._set_status(f"live tick 렌더 오류: {e}")
