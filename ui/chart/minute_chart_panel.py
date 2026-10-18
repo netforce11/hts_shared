@@ -602,14 +602,21 @@ class MinuteChartPanel(BasePanel):
         self._stop_loader()
         try:
             self._loader = self._make_minute_loader(self._symbol, d)
-            self._loader.loaded.connect(self._on_multiday_partial_loaded)
-            self._loader.error.connect(self._on_load_error)
+            # QueuedConnection: 워커 스레드 → 메인 스레드로 안전하게 전달
+            from PyQt6.QtCore import Qt as _Qt
+            self._loader.loaded.connect(
+                self._on_multiday_partial_loaded,
+                _Qt.ConnectionType.QueuedConnection)
+            self._loader.error.connect(
+                self._on_load_error,
+                _Qt.ConnectionType.QueuedConnection)
             self._loader.start()
         except NotImplementedError:
             self._set_status("❌ _make_minute_loader 미구현")
 
+    @pyqtSlot(object)
     def _on_multiday_partial_loaded(self, candles: list) -> None:
-        """한 날 분봉 로드 완료 → 다음 날 로드"""
+        """한 날 분봉 로드 완료 → 다음 날 로드 (메인 스레드에서 실행)"""
         # guard: 상태가 이미 리셋된 경우 무시
         if self._multiday_idx >= len(self._multiday_dates):
             return
@@ -848,6 +855,16 @@ class MinuteChartPanel(BasePanel):
     # ── 드로잉 툴 이벤트 ────────────────────────────────────────
     def _on_draw_mode_changed(self, btn) -> None:
         mode = btn.property("draw_mode")
+        is_select = (mode == "select")
+
+        # 드로잉 모드 시 ViewBox 마우스 드래그/줌 비활성화
+        # → 차트가 같이 이동/드래그 되는 문제 방지
+        for pl in (getattr(self, "_p1", None),
+                   getattr(self, "_p2", None)):
+            if pl:
+                vb = pl.getViewBox()
+                vb.setMouseEnabled(x=is_select, y=is_select)
+
         if hasattr(self, "_draw_mgr"):
             self._draw_mgr.set_mode(mode)
 
