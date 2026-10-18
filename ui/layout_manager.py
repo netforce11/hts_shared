@@ -134,7 +134,7 @@ class PanelLayoutManager:
         sub.resize(w, h)
         self._mdi.addSubWindow(sub)
         self._subs[pid] = sub
-        sub.show()
+        sub.hide()   # 기본값: 숨김 — restore() 또는 place()에서 표시
         return sub
 
     # ── 배치 (그리드 스냅) ──────────────────────────────
@@ -152,6 +152,12 @@ class PanelLayoutManager:
         sub = self._subs.get(panel_id)
         if sub:
             sub.setVisible(visible)
+
+    # ── 전체 숨김 ───────────────────────────────────────
+    def hide_all(self) -> None:
+        """모든 패널(탭 그룹 포함)을 숨긴다."""
+        for sub in self._subs.values():
+            sub.hide()
 
     # ── 최상위로 ────────────────────────────────────────
     def bring_to_front(self, panel_id: str) -> None:
