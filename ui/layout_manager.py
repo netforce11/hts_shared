@@ -203,7 +203,11 @@ class PanelLayoutManager:
         tab_win.resize(_snap(w), _snap(h))
         self._mdi.addSubWindow(tab_win)
         tab_win.setGeometry(QRect(_snap(x), _snap(y), _snap(w), _snap(h)))
-        tab_win.show()
+        # showNormal + 내부 컨테이너 위젯 명시적 show (빈 화면 방지)
+        tab_win.showNormal()
+        inner = tab_win.widget()
+        if inner:
+            inner.show()
         self._subs[group_id] = tab_win
         return group_id
 
@@ -246,6 +250,12 @@ class PanelLayoutManager:
         data: dict = {}
         tab_groups: list = []
 
+        # 탭 그룹 멤버 pid 수집 — data에서 제외하기 위해
+        tabgroup_members: set[str] = set()
+        for sub in self._subs.values():
+            if isinstance(sub, TabGroupSubWindow):
+                tabgroup_members.update(sub.panel_ids())
+
         for pid, sub in self._subs.items():
             r = sub.geometry()
             if isinstance(sub, TabGroupSubWindow):
@@ -256,7 +266,8 @@ class PanelLayoutManager:
                     "w": r.width(), "h": r.height(),
                     "visible": sub.isVisible(),
                 })
-            else:
+            elif pid not in tabgroup_members:
+                # 탭 그룹 멤버는 tab_groups에 이미 포함 → data에서 제외
                 data[pid] = asdict(PanelGeometry(
                     x=r.x(), y=r.y(), w=r.width(), h=r.height(),
                     visible=sub.isVisible(),
@@ -315,11 +326,16 @@ class PanelLayoutManager:
             pids = [p for p in tg.get("pids", []) if p in self._subs]
             if len(pids) < 1:
                 continue
-            self.create_tab_group(
+            gid = self.create_tab_group(
                 pids,
                 x=tg.get("x", 100), y=tg.get("y", 100),
                 w=tg.get("w", 600), h=tg.get("h", 450),
             )
+            # 탭 그룹 visible 상태 복원
+            if gid and not tg.get("visible", True):
+                tab_sub = self._subs.get(gid)
+                if tab_sub:
+                    tab_sub.hide()
 
         log.debug("레이아웃 복원: %s", target)
         return True

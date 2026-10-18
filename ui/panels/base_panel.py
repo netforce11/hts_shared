@@ -41,6 +41,8 @@ class BasePanel(QWidget):
     def _setup_ui(self) -> None:
         self.setObjectName(self.PANEL_ID)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        # 클릭 시 포커스를 받아야 focusInEvent → ShortcutManager 활성화
+        self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(2)
