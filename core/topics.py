@@ -58,3 +58,13 @@ class Topics:
     # ── 관심종목 ──────────────────────────────────────────
     # 관심종목 클릭 시 → 모든 패널이 이 토픽으로 종목 전환
     WATCHLIST_SELECT = "watchlist.symbol_selected"
+
+    # ── 차트 외부 제어 ────────────────────────────────────
+    # 외부 캘린더(관심종목 패널 하단 등)에서 날짜 클릭 →
+    # 차트 패널이 이 토픽을 구독하여 분봉 날짜 전환
+    # payload: {"date": "YYYY-MM-DD"} 또는 datetime.date 객체
+    CHART_DATE_SELECT = "chart.date.select"
+
+    # 차트 심볼 외부 전환 (관심종목 클릭 → 차트 자동 전환용)
+    # payload: {"symbol": "AAPL"}
+    CHART_SYMBOL_SELECT = "chart.symbol.select"
