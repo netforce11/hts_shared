@@ -110,11 +110,12 @@ class MinuteChartPanel(BasePanel):
             pg.setConfigOptions(antialias=False, useOpenGL=False)
 
             self._gfx = pg.GraphicsLayoutWidget()
-            self._gfx.setBackground("#0D1117")
+            # 키움 스타일: 연분홍~흰색 라이트 배경
+            self._gfx.setBackground("#FFF5F7")
 
             # p1 — 캔들
             self._p1 = self._gfx.addPlot(row=0, col=0)
-            self._p1.showGrid(x=True, y=True, alpha=0.3)
+            self._p1.showGrid(x=True, y=True, alpha=0.15)  # 라이트 배경 → 격자 연하게
             self._p1.setLabel("left", "가격")
             self._p1.setMenuEnabled(False)
 
@@ -128,6 +129,8 @@ class MinuteChartPanel(BasePanel):
             self._p2.hideAxis("bottom")
 
             lay.addWidget(self._gfx)
+            # 초기 라이트 테마 적용 (키움 스타일)
+            self.apply_theme()
         except Exception as e:
             lay.addWidget(QLabel(f"pyqtgraph 오류: {e}"))
         return w
@@ -284,8 +287,9 @@ class MinuteChartPanel(BasePanel):
             self._set_status(f"candle_closed 오류: {e}")
 
     # ── 테마 적용 ─────────────────────────────────────────────
-    def apply_theme(self, bg: str = "#0D1117", fg: str = "#DCDCDC",
-                    border: str = "#444444") -> None:
+    # 키움 라이트 테마 기본값 (#FFF5F7 연분홍, 텍스트 진회색, 격자 핑크빛)
+    def apply_theme(self, bg: str = "#FFF5F7", fg: str = "#1E293B",
+                    border: str = "#E8C8D0") -> None:
         try:
             if hasattr(self, "_gfx"):
                 self._gfx.setBackground(bg)

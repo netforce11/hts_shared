@@ -3,8 +3,11 @@
 # 기본 탑재 단축키:
 #   Alt+=  패널 넓게  (QMdiSubWindow 리사이즈)
 #   Alt+-  패널 좁게
+#   Alt+9  패널 높게
+#   Alt+0  패널 낮게
 #   Alt+]  폰트 크게
 #   Alt+[  폰트 작게
+#   Esc    패널 숨기기
 
 from __future__ import annotations
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMdiSubWindow, QApplication
@@ -57,8 +60,11 @@ class BasePanel(QWidget):
         return [
             ("Alt+=", self._panel_wider),    # 패널 넓게
             ("Alt+-", self._panel_narrower), # 패널 좁게
+            ("Alt+9", self._panel_taller),   # 패널 높게
+            ("Alt+0", self._panel_shorter),  # 패널 낮게
             ("Alt+]", self._font_up),        # 폰트 크게
             ("Alt+[", self._font_down),      # 폰트 작게
+            ("Escape", self._hide_panel),    # 패널 숨기기
         ]
 
     def set_shortcut_manager(self, mgr) -> None:
@@ -96,6 +102,22 @@ class BasePanel(QWidget):
         sub = self._sub_window()
         if sub:
             sub.resize(max(sub.width() - _PANEL_STEP, 120), sub.height())
+
+    def _panel_taller(self) -> None:
+        sub = self._sub_window()
+        if sub:
+            sub.resize(sub.width(), sub.height() + _PANEL_STEP)
+
+    def _panel_shorter(self) -> None:
+        sub = self._sub_window()
+        if sub:
+            sub.resize(sub.width(), max(sub.height() - _PANEL_STEP, 80))
+
+    def _hide_panel(self) -> None:
+        """Esc — 활성 패널(QMdiSubWindow)을 숨긴다."""
+        sub = self._sub_window()
+        if sub:
+            sub.hide()
 
     # ── 폰트 크기 조절 (Alt+] / Alt+[) ───────────────────
     def _font_up(self) -> None:
