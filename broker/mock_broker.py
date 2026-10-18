@@ -79,7 +79,8 @@ class MockBroker(BaseBroker):
             bid = round(price - 0.01, 2)
             ask = round(price + 0.01, 2)
             self._bus.publish(Topics.stock_price(symbol), {
-                "symbol": symbol, "price": price, "bid": bid, "ask": ask
+                "symbol": symbol, "price": price, "bid": bid, "ask": ask,
+                "ts": time.time(),   # 레이턴시 측정용 Unix timestamp
             })
             self._bus.publish(Topics.stock_orderbook(symbol), {
                 "symbol": symbol,
