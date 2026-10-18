@@ -105,7 +105,7 @@ class MinuteChartPanel(BasePanel):
         splitter.setHandleWidth(4)
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
-        self._layout.addWidget(splitter)
+        self._layout.addWidget(splitter, 1)   # stretch=1 → 남은 공간 모두 차지
 
         self._status_lbl = QLabel("대기 중...")
         self._status_lbl.setStyleSheet(_LABEL)
