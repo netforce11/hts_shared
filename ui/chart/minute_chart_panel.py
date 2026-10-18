@@ -63,8 +63,13 @@ class MinuteChartPanel(BasePanel):
     """
     공통 분봉/일봉 차트 패널.
     데이터 로딩은 _make_minute_loader / _make_daily_loader 오버라이드로 주입.
+
+    _SHOW_SIDEBAR = False 로 설정하면 사이드바(심볼·날짜) 없이
+    차트 영역만 전체 공간에 표시된다.
+    심볼/날짜는 DataBus(WATCHLIST_SELECT / CHART_DATE_SELECT)로만 제어.
     """
     PANEL_ID = "minute_chart"
+    _SHOW_SIDEBAR: bool = True   # 서브클래스에서 False 오버라이드 가능
 
     # 캔들 색상 (서브클래스에서 오버라이드 가능)
     UP_COLOR = "#26A69A"
@@ -98,14 +103,19 @@ class MinuteChartPanel(BasePanel):
 
     # ── 레이아웃 ─────────────────────────────────────────────────
     def _build_body(self) -> None:
-        self._splitter = QSplitter(Qt.Orientation.Horizontal)
-        self._splitter.addWidget(self._build_sidebar())
-        self._splitter.addWidget(self._build_chart_area())
-        self._splitter.setSizes([220, 900])
-        self._splitter.setHandleWidth(4)
-        self._splitter.setStretchFactor(0, 0)
-        self._splitter.setStretchFactor(1, 1)
-        self._layout.addWidget(self._splitter, 1)   # stretch=1 → 남은 공간 모두 차지
+        if self._SHOW_SIDEBAR:
+            self._splitter = QSplitter(Qt.Orientation.Horizontal)
+            self._splitter.addWidget(self._build_sidebar())
+            self._splitter.addWidget(self._build_chart_area())
+            self._splitter.setSizes([220, 900])
+            self._splitter.setHandleWidth(4)
+            self._splitter.setStretchFactor(0, 0)
+            self._splitter.setStretchFactor(1, 1)
+            self._layout.addWidget(self._splitter, 1)
+        else:
+            # 사이드바 없음 — 차트 영역이 패널 전체를 차지
+            self._splitter = None
+            self._layout.addWidget(self._build_chart_area(), 1)
 
         self._status_lbl = QLabel("대기 중...")
         self._status_lbl.setStyleSheet(_LABEL)
