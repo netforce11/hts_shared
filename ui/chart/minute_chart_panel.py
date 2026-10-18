@@ -133,7 +133,7 @@ class MinuteChartPanel(BasePanel):
 
         header_w = QWidget()
         header_w.setLayout(header)
-        header_w.setMaximumHeight(32)
+        header_w.setFixedHeight(32)        # Max 아닌 Fixed — Qt가 0으로 축소하는 것 방지
         lay.addWidget(header_w)
 
         # ── 차트 그래픽 영역 ─────────────────────────────────
@@ -308,7 +308,8 @@ class MinuteChartPanel(BasePanel):
 
     # ── 렌더링 ────────────────────────────────────────────────
     def _render_full(self) -> None:
-        """닫힌 봉 전체 재렌더 + live bar 포함. 새 데이터 수신 시 호출."""
+        """닫힌 봉 전체 재렌더. 새 데이터 수신·봉 확정 시 호출.
+        live bar는 포함하지 않음 — 별도 _render_live_tick()이 담당."""
         if not hasattr(self, "_p1") or not self._candles:
             return
         try:
@@ -318,18 +319,15 @@ class MinuteChartPanel(BasePanel):
             self._p1.clear()
             self._p2.clear()
             self._candle_item = None
-            self._live_item   = None
+            self._live_item   = None   # clear() 후이므로 plot에서 이미 제거됨
 
             valid = [c for c in self._candles
                      if c.h > 0 and c.l > 0 and c.o > 0 and c.c > 0
                      and c.h >= c.l and c.h >= c.o and c.h >= c.c]
 
-            # live bar를 마지막에 임시 캔들로 추가
+            # ── live bar 는 여기서 포함하지 않음 ──
+            # _render_full 후 live bar가 있으면 _render_live_tick이 이어서 추가
             display = list(valid)
-            if self._live_bar:
-                lc = self._live_bar_as_candle()
-                if lc:
-                    display.append(lc)
 
             if not display:
                 self._set_status("표시할 유효 캔들 없음")
@@ -363,6 +361,10 @@ class MinuteChartPanel(BasePanel):
 
             # x축 레이블
             self._set_x_ticks(display)
+
+            # 닫힌 봉 렌더 후 live bar가 있으면 즉시 오버레이
+            if self._live_bar:
+                self._render_live_tick()
 
         except Exception as e:
             self._set_status(f"렌더 오류: {e}")
@@ -502,6 +504,12 @@ class MinuteChartPanel(BasePanel):
             self._status_lbl.setText(msg)
 
     def _clear_chart(self) -> None:
+        # live_item은 p1.clear()에 포함되지 않을 수 있으므로 명시적 제거
+        if self._live_item is not None and hasattr(self, "_p1"):
+            try:
+                self._p1.removeItem(self._live_item)
+            except Exception:
+                pass
         self._candle_item = None
         self._live_item   = None
         for pl in (getattr(self, "_p1", None),
