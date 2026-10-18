@@ -103,6 +103,14 @@ class MinuteChartPanel(BasePanel):
 
     # ── 레이아웃 ─────────────────────────────────────────────────
     def _build_body(self) -> None:
+        # _calendar 는 _SHOW_SIDEBAR 여부와 관계없이 항상 생성
+        # (날짜 관련 로직 전체에서 self._calendar 참조 때문)
+        from PyQt6.QtWidgets import QCalendarWidget
+        self._calendar = QCalendarWidget()
+        self._calendar.setMaximumDate(QDate.currentDate())
+        self._calendar.setSelectedDate(QDate.currentDate())
+        self._calendar.selectionChanged.connect(self._on_date_changed)
+
         if self._SHOW_SIDEBAR:
             self._splitter = QSplitter(Qt.Orientation.Horizontal)
             self._splitter.addWidget(self._build_sidebar())
@@ -114,6 +122,7 @@ class MinuteChartPanel(BasePanel):
             self._layout.addWidget(self._splitter, 1)
         else:
             # 사이드바 없음 — 차트 영역이 패널 전체를 차지
+            # _calendar 는 숨겨진 상태로 유지 (DataBus 날짜 제어용)
             self._splitter = None
             self._layout.addWidget(self._build_chart_area(), 1)
 
@@ -161,10 +170,7 @@ class MinuteChartPanel(BasePanel):
         cal_lay.setContentsMargins(0, 4, 0, 0)
         cal_lay.setSpacing(2)
         cal_lay.addWidget(QLabel("날짜"))
-        self._calendar = QCalendarWidget()
-        self._calendar.setMaximumDate(QDate.currentDate())
-        self._calendar.setSelectedDate(QDate.currentDate())
-        self._calendar.selectionChanged.connect(self._on_date_changed)
+        # _calendar 는 _build_body() 에서 이미 생성됨 — 여기서는 레이아웃에만 추가
         self._calendar.setFixedHeight(180)
         cal_lay.addWidget(self._calendar)
 
