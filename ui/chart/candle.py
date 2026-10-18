@@ -58,14 +58,20 @@ class CandlestickItem(pg.GraphicsObject):
             brush = pg.mkBrush(color)
             p.setPen(pen)
             p.setBrush(brush)
-            # 몸통
+
             body_top = max(c.o, c.c)
             body_bot = min(c.o, c.c)
             body_h   = max(body_top - body_bot, 0.001)
+
+            # 심지 먼저 — body가 위에 덮어씌워야 경계선이 자연스러움
+            # 실제로 연장될 때만 그림 (zero-length 선 → 픽셀 잡음 방지)
+            if c.l < body_bot:
+                p.drawLine(QLineF(x, c.l, x, body_bot))
+            if c.h > body_top:
+                p.drawLine(QLineF(x, body_top, x, c.h))
+
+            # 몸통 (심지 위에 덮어씌움)
             p.drawRect(QRectF(x - w, body_bot, w * 2, body_h))
-            # 심지
-            p.drawLine(QLineF(x, c.l, x, body_bot))
-            p.drawLine(QLineF(x, body_top, x, c.h))
         p.end()
 
     def paint(self, p, *args) -> None:
