@@ -496,10 +496,14 @@ class MinuteChartPanel(BasePanel):
 
     def _set_symbol(self, symbol: str) -> None:
         self._symbol = symbol.upper()
-        self._sym_input.setCurrentText(self._symbol)
+        # _build_body() 완료 전에 호출될 수 있으므로 hasattr 가드
+        if hasattr(self, "_sym_input"):
+            self._sym_input.setCurrentText(self._symbol)
         self._candles  = []
         self._live_bar = None
         self._clear_chart()
+        if not hasattr(self, "_calendar"):
+            return   # 아직 초기화 미완료
         if self._chart_mode == "daily":
             self._load_daily()
         else:
