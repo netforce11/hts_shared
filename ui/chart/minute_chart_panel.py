@@ -128,7 +128,14 @@ class MinuteChartPanel(BasePanel):
             self._p2.setMenuEnabled(False)
             self._p2.hideAxis("bottom")
 
-            lay.addWidget(self._gfx)
+            # ── GraphicsLayoutWidget 내부 행 비율 설정 ──────────
+            # 미설정 시 하단에 빈 공간이 남음 (tradier_working2 참고)
+            self._gfx.ci.layout.setRowStretchFactor(0, 4)   # 캔들: 4배 확장
+            self._gfx.ci.layout.setRowMinimumHeight(0, 150) # 캔들 최소 높이
+            self._gfx.ci.layout.setRowMaximumHeight(1, 80)  # 거래량 최대 80px
+            self._gfx.ci.layout.setRowStretchFactor(1, 1)   # 거래량: 1배
+
+            lay.addWidget(self._gfx, 1)   # stretch=1: 수직 공간 채우기
             # 초기 라이트 테마 적용 (키움 스타일)
             self.apply_theme()
         except Exception as e:
@@ -224,26 +231,47 @@ class MinuteChartPanel(BasePanel):
             self._p1.clear()
             self._p2.clear()
 
+            # ── 유효한 캔들만 필터 (IBKR에서 -1 / 0 값 오는 경우 제거) ──
+            valid = [c for c in self._candles
+                     if c.h > 0 and c.l > 0 and c.o > 0 and c.c > 0
+                     and c.h >= c.l and c.h >= c.o and c.h >= c.c]
+            if not valid:
+                self._set_status("표시할 유효 캔들 없음")
+                return
+
             # 캔들스틱
-            item = CandlestickItem(self._candles, self.UP_COLOR, self.DN_COLOR)
+            item = CandlestickItem(valid, self.UP_COLOR, self.DN_COLOR)
             self._p1.addItem(item)
 
             # 거래량 바
-            xs = list(range(len(self._candles)))
-            vs = [c.v for c in self._candles]
+            xs     = list(range(len(valid)))
+            vs     = [max(c.v, 0) for c in valid]   # 음수 volume(-1) 보호
             colors = [self.UP_COLOR if c.c >= c.o else self.DN_COLOR
-                      for c in self._candles]
+                      for c in valid]
             bars = pg.BarGraphItem(
                 x=xs, height=vs, width=0.6,
                 brushes=colors, pens=colors)
             self._p2.addItem(bars)
 
+            # ── 명시적 Y/X 범위 (auto-range 오차 방지) ──────────────
+            lows  = [c.l for c in valid]
+            highs = [c.h for c in valid]
+            y_min, y_max = min(lows), max(highs)
+            span  = max(y_max - y_min, y_max * 0.001)
+            pad   = span * 0.05
+            self._p1.setYRange(y_min - pad, y_max + pad, padding=0)
+            self._p1.setXRange(-1, len(valid) + 1, padding=0)
+
+            if vs:
+                self._p2.setYRange(0, max(vs) * 1.1, padding=0)
+                self._p2.setXRange(-1, len(valid) + 1, padding=0)
+
             # x축 시간 레이블
             ticks = {}
-            step = max(1, len(self._candles) // 10)
-            for i in range(0, len(self._candles), step):
+            step = max(1, len(valid) // 10)
+            for i in range(0, len(valid), step):
                 ticks[i] = datetime.fromtimestamp(
-                    self._candles[i].t).strftime("%H:%M")
+                    valid[i].t).strftime("%H:%M")
             self._p1.getAxis("bottom").setTicks([list(ticks.items())])
 
         except Exception as e:
