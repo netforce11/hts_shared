@@ -54,3 +54,7 @@ class Topics:
     ORDER_PLACED    = "order.placed"
     ORDER_FILLED    = "order.filled"
     ORDER_CANCELLED = "order.cancelled"
+
+    # ── 관심종목 ──────────────────────────────────────────
+    # 관심종목 클릭 시 → 모든 패널이 이 토픽으로 종목 전환
+    WATCHLIST_SELECT = "watchlist.symbol_selected"
