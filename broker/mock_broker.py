@@ -73,6 +73,8 @@ class MockBroker(BaseBroker):
     def _fake_feed(self, symbol: str, stop: threading.Event) -> None:
         import time
         price = random.uniform(100, 500)
+        # prev_close: 초기 가격에서 ±2% 범위의 전일 종가 시뮬레이션
+        prev_close = round(price * random.uniform(0.98, 1.02), 2)
         while not stop.is_set():
             price += random.gauss(0, 0.5)
             price = max(1.0, round(price, 2))
@@ -80,6 +82,7 @@ class MockBroker(BaseBroker):
             ask = round(price + 0.01, 2)
             self._bus.publish(Topics.stock_price(symbol), {
                 "symbol": symbol, "price": price, "bid": bid, "ask": ask,
+                "prev_close": prev_close,
                 "ts": time.time(),   # 레이턴시 측정용 Unix timestamp
             })
             self._bus.publish(Topics.stock_orderbook(symbol), {
