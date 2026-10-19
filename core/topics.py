@@ -68,3 +68,7 @@ class Topics:
     # 차트 심볼 외부 전환 (관심종목 클릭 → 차트 자동 전환용)
     # payload: {"symbol": "AAPL"}
     CHART_SYMBOL_SELECT = "chart.symbol.select"
+
+    # ── 스캐너 ────────────────────────────────────────────
+    SCANNER_RESULT   = "scanner.result"   # 스캔 결과 도착
+    SCANNER_ERROR    = "scanner.error"    # 스캔 오류

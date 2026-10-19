@@ -411,6 +411,7 @@ class MinuteChartPanel(BasePanel):
 
     # ── 단축키 ───────────────────────────────────────────────────
     def register_shortcuts(self) -> list:
+        # super() 호출 필수: BasePanel의 Alt+=/- (패널 크기), Alt+]/[ (폰트) 포함
         return super().register_shortcuts() + [
             ("Left",  self._go_prev_day),
             ("Right", self._go_next_day),
