@@ -58,3 +58,7 @@ class Topics:
     # ── 관심종목 ──────────────────────────────────────────
     # 관심종목 클릭 시 → 모든 패널이 이 토픽으로 종목 전환
     WATCHLIST_SELECT = "watchlist.symbol_selected"
+
+    # ── 스캐너 ────────────────────────────────────────────
+    SCANNER_RESULT   = "scanner.result"   # 스캔 결과 도착
+    SCANNER_ERROR    = "scanner.error"    # 스캔 오류

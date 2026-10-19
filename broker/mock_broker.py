@@ -69,6 +69,53 @@ class MockBroker(BaseBroker):
     def get_account(self) -> dict:
         return {"balance": self._balance, "currency": "USD"}
 
+    # ── 스캐너 Mock ────────────────────────────────────────
+    _MOCK_SCAN_POOLS = {
+        "TOP_PERC_GAIN":   ["NVDA","TSLA","AMD","AAPL","META","AMZN","GOOGL","MSFT","NFLX","PLTR"],
+        "TOP_PERC_LOSE":   ["BABA","NIO","RIVN","LCID","WISH","SNAP","TWTR","HOOD","COIN","SOFI"],
+        "MOST_ACTIVE":     ["SPY","QQQ","AAPL","TSLA","NVDA","AMD","AMZN","MSFT","F","AAL"],
+        "MOST_ACTIVE_USD": ["SPY","NVDA","AAPL","TSLA","MSFT","GOOGL","META","AMZN","AMD","NFLX"],
+        "TOP_OPEN_PERC_GAIN": ["SMCI","MARA","RIOT","MSTR","CLSK","HUT","BTBT","CIFR","WULF","IREN"],
+        "TOP_OPEN_PERC_LOSE": ["INTC","IBM","HPQ","T","VZ","CVS","WBA","KHC","PFE","MRK"],
+        "HIGH_VS_13W_HL":  ["NVDA","META","GE","LLY","UNH","JPM","V","MA","AVGO","ORCL"],
+        "LOW_VS_13W_HL":   ["BABA","NIO","PYPL","ETSY","RBLX","U","SNAP","LYFT","ABNB","UBER"],
+    }
+
+    def request_scanner(self, req_id: int, scan_code: str,
+                        filters: dict | None = None) -> None:
+        import time, random, threading
+        def _mock():
+            time.sleep(0.3)   # 조회 지연 시뮬레이션
+            pool = self._MOCK_SCAN_POOLS.get(scan_code,
+                   ["AAPL","MSFT","GOOGL","AMZN","NVDA"])
+            results = []
+            for rank, sym in enumerate(pool, 1):
+                base = random.uniform(50, 600)
+                chg  = random.uniform(-8, 8) if "LOSE" in scan_code else random.uniform(0.5, 12)
+                if "LOSE" in scan_code:
+                    chg = -abs(chg)
+                results.append({
+                    "rank":         rank,
+                    "symbol":       sym,
+                    "price":        round(base, 2),
+                    "change":       round(base * chg / 100, 2),
+                    "change_pct":   round(chg, 2),
+                    "volume":       random.randint(1_000_000, 50_000_000),
+                    "avg_volume":   random.randint(5_000_000, 30_000_000),
+                    "market_cap":   round(random.uniform(1e9, 3e12), 0),
+                    "exchange":     "NASDAQ",
+                })
+            self._bus.publish(Topics.SCANNER_RESULT, {
+                "req_id":    req_id,
+                "scan_code": scan_code,
+                "results":   results,
+                "ts":        time.time(),
+            })
+        threading.Thread(target=_mock, daemon=True).start()
+
+    def cancel_scanner(self, req_id: int) -> None:
+        pass  # Mock: 취소할 실체 없음
+
     # ── 가짜 시세 피드 ─────────────────────────────────────
     def _fake_feed(self, symbol: str, stop: threading.Event) -> None:
         import time

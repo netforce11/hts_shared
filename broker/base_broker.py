@@ -35,3 +35,16 @@ class BaseBroker(ABC):
 
     @abstractmethod
     def get_account(self) -> dict: ...
+
+    # ── 스캐너 (선택 구현 — 미구현 시 빈 동작) ──────────
+    def request_scanner(self, req_id: int, scan_code: str,
+                        filters: dict | None = None) -> None:
+        """
+        시장 스캐너 조회 요청.
+        결과는 DataBus Topics.SCANNER_RESULT 로 publish됨.
+        filters 예: {"min_price": 5.0, "max_price": 500.0,
+                     "above_volume": 500000, "market": "STK"}
+        """
+
+    def cancel_scanner(self, req_id: int) -> None:
+        """스캐너 구독 취소"""
