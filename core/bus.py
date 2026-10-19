@@ -41,8 +41,20 @@ class DataBus:
 
     # ── 발행 ─────────────────────────────────────────────
     def publish(self, topic: str, data: Any = None) -> None:
+        """
+        topic 정확 일치 + 와일드카드(*) 구독자 모두에게 전달.
+        와일드카드는 마지막 세그먼트만 지원: "stock.price.*" 는
+        "stock.price.AAPL", "stock.price.TSLA" 등에 매칭됨.
+        """
         with self._lock:
             handlers = list(self._subs.get(topic, []))
+            # 와일드카드 구독자 수집
+            # 예: topic="stock.price.AAPL" → 접두사="stock.price."
+            parts = topic.rsplit(".", 1)
+            if len(parts) == 2:
+                wildcard = parts[0] + ".*"
+                handlers += list(self._subs.get(wildcard, []))
+
         for _, cb in handlers:
             try:
                 cb(data)

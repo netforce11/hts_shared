@@ -52,12 +52,36 @@ class MockBroker(BaseBroker):
     def place_order(self, req: OrderRequest) -> str:
         order_id = str(uuid.uuid4())[:8]
         log.info("MockBroker: order %s %s %s x%d", order_id, req.side, req.symbol, req.quantity)
+
         # 즉시 체결 시뮬레이션
-        fill_price = round(random.uniform(100, 500), 2)
-        self._bus.publish(Topics.order_fill(order_id), {
-            "order_id": order_id, "symbol": req.symbol,
-            "side": req.side, "qty": req.quantity, "price": fill_price
-        })
+        fill_price  = round(random.uniform(100, 500), 2)
+        commission  = round(req.quantity * 0.005, 4)   # $0.005/주 모의 수수료
+        fill_id     = str(uuid.uuid4())[:12]
+
+        # 실현손익: SELL 시 단순 계산 (Mock이므로 avg_cost 없이 랜덤)
+        realized_pnl = 0.0
+        if req.side == "SELL":
+            avg_cost = round(fill_price * random.uniform(0.95, 1.05), 2)
+            realized_pnl = round((fill_price - avg_cost) * req.quantity - commission, 2)
+
+        fill_payload = {
+            "fill_id":      fill_id,
+            "order_id":     order_id,
+            "symbol":       req.symbol,
+            "side":         req.side,
+            "qty":          req.quantity,
+            "fill_price":   fill_price,
+            "price":        fill_price,   # 하위 호환
+            "commission":   commission,
+            "realized_pnl": realized_pnl,
+        }
+
+        # order.fill.{id} — 개별 주문 구독용 (기존 호환)
+        self._bus.publish(Topics.order_fill(order_id), fill_payload)
+
+        # order.filled — DB 저장 + 체결패널용 (집계 토픽)
+        self._bus.publish(Topics.ORDER_FILLED, fill_payload)
+
         return order_id
 
     def cancel_order(self, order_id: str) -> None:
