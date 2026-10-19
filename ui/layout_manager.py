@@ -165,14 +165,36 @@ class PanelLayoutManager:
     # ── 최상위로 ────────────────────────────────────────
     def bring_to_front(self, panel_id: str) -> None:
         sub = self._subs.get(panel_id)
-        if sub:
-            sub.showNormal()          # 숨겨진 상태에서도 완전히 표시
-            w = sub.widget()
-            if w:
-                w.show()              # 내부 위젯도 명시적으로 표시
-                w.update()            # 강제 리페인트
-            self._mdi.setActiveSubWindow(sub)
-            sub.raise_()
+        if not sub:
+            log.warning("bring_to_front: 패널 '%s' 없음", panel_id)
+            return
+
+        # 탭그룹에 포함된 경우: 해당 탭그룹 서브윈도우를 앞으로 가져오고 탭 선택
+        for gid, gsub in self._subs.items():
+            if not isinstance(gsub, TabGroupSubWindow):
+                continue
+            if panel_id in gsub._pid_map:
+                gsub.showNormal()
+                inner = gsub.widget()
+                if inner:
+                    inner.show()
+                # 탭 인덱스 찾아서 선택
+                widget = gsub._pid_map[panel_id]
+                idx = gsub._tab.indexOf(widget)
+                if idx >= 0:
+                    gsub._tab.setCurrentIndex(idx)
+                self._mdi.setActiveSubWindow(gsub)
+                gsub.raise_()
+                return
+
+        # 일반 서브윈도우
+        sub.showNormal()          # 숨겨진 상태에서도 완전히 표시
+        w = sub.widget()
+        if w:
+            w.show()              # 내부 위젯도 명시적으로 표시
+            w.update()            # 강제 리페인트
+        self._mdi.setActiveSubWindow(sub)
+        sub.raise_()
 
     # ── 탭 그룹 생성 ────────────────────────────────────
     def create_tab_group(self, panel_ids: List[str],
