@@ -9,10 +9,11 @@ from typing import Optional
 @dataclass
 class OrderRequest:
     symbol: str
-    side: str          # "BUY" | "SELL"
-    quantity: int
-    price: Optional[float]   # None → 시장가
-    order_type: str    # "MKT" | "LMT"
+    side: str                    # "BUY" | "SELL"
+    quantity: float              # 정수 또는 소수(fractional)
+    price: Optional[float]       # None → 시장가
+    order_type: str              # "MKT" | "LMT"
+    fractional: bool = False     # True → 소수 주문
 
 
 @dataclass
@@ -31,6 +32,10 @@ class OrderValidator:
 
         if req.quantity <= 0:
             return ValidationResult(False, f"수량은 양수여야 합니다: {req.quantity}")
+
+        if not req.fractional and req.quantity != int(req.quantity):
+            return ValidationResult(False,
+                f"소수 주문은 fractional=True 설정 필요: {req.quantity}")
 
         if req.side not in ("BUY", "SELL"):
             return ValidationResult(False, f"유효하지 않은 방향: {req.side!r}")
