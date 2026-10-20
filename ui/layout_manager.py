@@ -260,6 +260,8 @@ class PanelLayoutManager:
                 widget = tab_win.remove_panel(pid)
                 sub = self._subs.get(pid)
                 if sub and widget:
+                    # parent를 명시적으로 None으로 해제 후 재부착 (segfault 방지)
+                    widget.setParent(None)  # type: ignore[arg-type]
                     sub.setWidget(widget)
                     sub.hide()
             self._mdi.removeSubWindow(tab_win)
