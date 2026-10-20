@@ -162,7 +162,10 @@ class MockBroker(BaseBroker):
         init_margin   = 15_000.0
         drift         = 0.0   # 누적 일일 손익 드리프트
 
-        # 최초 즉시 발행
+        # Step4(_build_panels) 완료까지 대기 후 최초 발행
+        # — connect()는 Step2에서 호출되고 패널은 Step4에서 구독하므로
+        #   즉시 발행하면 구독자가 없어 소실됨 → 2초 지연
+        time.sleep(2.0)
         self._publish_account(net_liq, cash, unrealized, realized,
                               maint_margin, init_margin, drift)
         while not self._acct_stop.is_set():
