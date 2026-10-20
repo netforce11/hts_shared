@@ -256,17 +256,25 @@ class PanelLayoutManager:
                      if isinstance(sub, TabGroupSubWindow)]
         for gid in group_ids:
             tab_win: TabGroupSubWindow = self._subs[gid]
+            # 탭 시그널 먼저 끊기 (이벤트 루프에서 콜백 방지)
+            try:
+                tab_win._tab.tabCloseRequested.disconnect()
+                tab_win.tab_detached.disconnect()
+            except Exception:
+                pass
             for pid in list(tab_win.panel_ids()):
                 widget = tab_win.remove_panel(pid)
                 sub = self._subs.get(pid)
                 if sub and widget:
-                    # parent를 명시적으로 None으로 해제 후 재부착 (segfault 방지)
+                    # parent를 None으로 해제 후 재부착 (힙 손상 방지)
                     widget.setParent(None)  # type: ignore[arg-type]
                     sub.setWidget(widget)
                     sub.hide()
+            # removeSubWindow 후 hide → deleteLater 순서 보장
+            tab_win.hide()
             self._mdi.removeSubWindow(tab_win)
-            tab_win.deleteLater()
             del self._subs[gid]
+            tab_win.deleteLater()
 
     # ── 저장 ────────────────────────────────────────────
     def save(self, file: Optional[Path] = None) -> None:
