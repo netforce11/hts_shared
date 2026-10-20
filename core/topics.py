@@ -39,6 +39,22 @@ class Topics:
     PORTFOLIO_SUMMARY = "portfolio.summary"
     ACCOUNT_BALANCE   = "account.balance"
 
+    # 계좌 전체 정보 갱신 (AccountPanel 전용)
+    # payload 키:
+    #   net_liquidation   : float  — 총 자산
+    #   cash_balance      : float  — 현금 잔고
+    #   buying_power      : float  — 매수 가능 금액
+    #   available_funds   : float  — 사용 가능 자금
+    #   excess_liquidity  : float  — 초과 유동성
+    #   maintenance_margin: float  — 유지 마진
+    #   initial_margin    : float  — 초기 마진
+    #   unrealized_pnl    : float  — 미실현 손익
+    #   realized_pnl      : float  — 실현 손익 (당일)
+    #   daily_pnl         : float  — 일일 손익 (unrealized+realized)
+    #   currency          : str    — 통화 (기본 "USD")
+    #   account_id        : str    — 계좌번호 (선택)
+    ACCOUNT_UPDATE = "account.update"
+
     # ── 리스크 ───────────────────────────────────────────
     RISK_KILL_SWITCH   = "risk.kill_switch"
     RISK_DAILY_PNL     = "risk.daily_pnl"

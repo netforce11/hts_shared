@@ -24,10 +24,20 @@ class MockBroker(BaseBroker):
     def connect(self) -> None:
         log.info("MockBroker connected")
         self._bus.publish(Topics.BROKER_CONNECTED, {"broker": "mock"})
+        # 계좌 데이터 주기적 발행 (5초 간격)
+        self._acct_stop = threading.Event()
+        self._acct_thread = threading.Thread(
+            target=self._fake_account_feed,
+            name="MockAccount",
+            daemon=True,
+        )
+        self._acct_thread.start()
 
     def disconnect(self) -> None:
         for sym in list(self._feed_threads):
             self.unsubscribe(sym)
+        if hasattr(self, "_acct_stop"):
+            self._acct_stop.set()
         log.info("MockBroker disconnected")
         self._bus.publish(Topics.BROKER_DISCONNECTED, {"broker": "mock"})
 
@@ -139,6 +149,60 @@ class MockBroker(BaseBroker):
 
     def cancel_scanner(self, req_id: int) -> None:
         pass  # Mock: 취소할 실체 없음
+
+    # ── 가짜 계좌 피드 ─────────────────────────────────────
+    def _fake_account_feed(self) -> None:
+        """5초 간격으로 모의 계좌 데이터 발행."""
+        import time
+        net_liq       = 125_000.0
+        cash          = 80_000.0
+        unrealized    = 2_500.0
+        realized      = 800.0
+        maint_margin  = 12_000.0
+        init_margin   = 15_000.0
+        drift         = 0.0   # 누적 일일 손익 드리프트
+
+        # 최초 즉시 발행
+        self._publish_account(net_liq, cash, unrealized, realized,
+                              maint_margin, init_margin, drift)
+        while not self._acct_stop.is_set():
+            time.sleep(5)
+            # 소폭 변동 시뮬레이션
+            unrealized  = round(unrealized + random.gauss(0, 120), 2)
+            net_liq     = round(cash + unrealized + random.gauss(0, 50), 2)
+            drift       = round(drift + random.gauss(0, 30), 2)
+            realized    = round(realized + random.gauss(0, 20), 2)
+            maint_margin = round(abs(unrealized) * 0.15 + random.uniform(0, 500), 2)
+            self._publish_account(net_liq, cash, unrealized, realized,
+                                  maint_margin, init_margin, drift)
+
+    def _publish_account(
+        self,
+        net_liq: float, cash: float,
+        unrealized: float, realized: float,
+        maint_margin: float, init_margin: float,
+        drift: float,
+    ) -> None:
+        buying_power   = round(cash * 2, 2)          # Reg-T 2배
+        avail          = round(max(cash - maint_margin, 0), 2)
+        excess_liq     = round(net_liq - maint_margin, 2)
+        daily_pnl      = round(unrealized + realized + drift, 2)
+        self._bus.publish(Topics.ACCOUNT_UPDATE, {
+            "net_liquidation":    net_liq,
+            "cash_balance":       cash,
+            "buying_power":       buying_power,
+            "available_funds":    avail,
+            "excess_liquidity":   excess_liq,
+            "maintenance_margin": maint_margin,
+            "initial_margin":     init_margin,
+            "unrealized_pnl":     unrealized,
+            "realized_pnl":       realized,
+            "daily_pnl":          daily_pnl,
+            "currency":           "USD",
+            "account_id":         "MOCK-U123456",
+        })
+        # RISK_DAILY_PNL 도 동시에 갱신
+        self._bus.publish(Topics.RISK_DAILY_PNL, {"daily_pnl": daily_pnl})
 
     # ── 가짜 시세 피드 ─────────────────────────────────────
     def _fake_feed(self, symbol: str, stop: threading.Event) -> None:
