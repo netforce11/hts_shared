@@ -111,7 +111,8 @@ class DrawingManager:
     def _on_click(self, event) -> None:
         if self._mode == self.SELECT:
             return
-        if event.button() != 1:          # 좌클릭만
+        from PyQt6.QtCore import Qt as _Qt
+        if event.button() != _Qt.MouseButton.LeftButton:   # 좌클릭만 (PyQt6 enum)
             self._cancel_tmp()
             return
 
@@ -171,19 +172,26 @@ class DrawingManager:
             self._p1.addItem(self._tmp)
 
         elif self._mode in (self.RECT, self.ELLIPSE):
-            from PyQt6.QtCore import QRectF
-            rx, ry = min(x1, x2), min(y1, y2)
             rw, rh = abs(x2 - x1), abs(y2 - y1)
             if rw < 0.001 or rh < 0.001:
                 return
+            pen = self._pen(self.COLOR_LINE, 1, dash=True)
             if self._mode == self.RECT:
-                tmp = pg.QtWidgets.QGraphicsRectItem(
-                    QRectF(rx, ry, rw, rh))
+                # PlotDataItem은 데이터 좌표계 사용 — QGraphicsRectItem(씬 좌표) 사용 금지
+                tmp = pg.PlotDataItem(
+                    x=[x1, x2, x2, x1, x1],
+                    y=[y1, y1, y2, y2, y1],
+                    pen=pen,
+                )
             else:
-                tmp = pg.QtWidgets.QGraphicsEllipseItem(
-                    QRectF(rx, ry, rw, rh))
-            tmp.setPen(self._pen(self.COLOR_LINE, 1, dash=True))
-            tmp.setBrush(pg.mkBrush(None))
+                # 타원: 데이터 좌표 폴리곤 근사
+                import math
+                cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
+                rx2, ry2 = rw / 2, rh / 2
+                n = 64
+                xs = [cx + rx2 * math.cos(2 * math.pi * i / n) for i in range(n + 1)]
+                ys = [cy + ry2 * math.sin(2 * math.pi * i / n) for i in range(n + 1)]
+                tmp = pg.PlotDataItem(x=xs, y=ys, pen=pen)
             self._p1.addItem(tmp)
             self._tmp = tmp
 
@@ -211,23 +219,25 @@ class DrawingManager:
 
     def _finish_rect(self, x1, y1, x2, y2) -> None:
         import pyqtgraph as pg
-        from PyQt6.QtCore import QRectF
-        rx, ry = min(x1, x2), min(y1, y2)
-        rw, rh = abs(x2 - x1), abs(y2 - y1)
-        item = pg.QtWidgets.QGraphicsRectItem(QRectF(rx, ry, rw, rh))
-        item.setPen(self._pen(self.COLOR_LINE, 1))
-        item.setBrush(pg.mkBrush(None))
+        # QGraphicsRectItem은 씬(픽셀) 좌표계 → 데이터 좌표 폴리곤으로 대체
+        item = pg.PlotDataItem(
+            x=[x1, x2, x2, x1, x1],
+            y=[y1, y1, y2, y2, y1],
+            pen=self._pen(self.COLOR_LINE, 1),
+        )
         self._p1.addItem(item)
         self._items.append(item)
 
     def _finish_ellipse(self, x1, y1, x2, y2) -> None:
         import pyqtgraph as pg
-        from PyQt6.QtCore import QRectF
-        rx, ry = min(x1, x2), min(y1, y2)
-        rw, rh = abs(x2 - x1), abs(y2 - y1)
-        item = pg.QtWidgets.QGraphicsEllipseItem(QRectF(rx, ry, rw, rh))
-        item.setPen(self._pen(self.COLOR_LINE, 1))
-        item.setBrush(pg.mkBrush(None))
+        import math
+        # QGraphicsEllipseItem은 씬(픽셀) 좌표계 → 데이터 좌표 폴리곤 근사로 대체
+        cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
+        rx, ry = abs(x2 - x1) / 2, abs(y2 - y1) / 2
+        n = 64
+        xs = [cx + rx * math.cos(2 * math.pi * i / n) for i in range(n + 1)]
+        ys = [cy + ry * math.sin(2 * math.pi * i / n) for i in range(n + 1)]
+        item = pg.PlotDataItem(x=xs, y=ys, pen=self._pen(self.COLOR_LINE, 1))
         self._p1.addItem(item)
         self._items.append(item)
 

@@ -85,6 +85,11 @@ class Topics:
     # payload: {"symbol": "AAPL"}
     CHART_SYMBOL_SELECT = "chart.symbol.select"
 
+    # ── 캔들 실시간 ──────────────────────────────────────────
+    # payload: {"symbol": str, "candle": Candle-like dict, ...}
+    CANDLE_TICK   = "candle.tick"    # 현재 봉 틱 업데이트
+    CANDLE_CLOSED = "candle.closed"  # 봉 확정 (이전 봉 종료)
+
     # ── 스캐너 ────────────────────────────────────────────
     SCANNER_RESULT   = "scanner.result"   # 스캔 결과 도착
     SCANNER_ERROR    = "scanner.error"    # 스캔 오류
