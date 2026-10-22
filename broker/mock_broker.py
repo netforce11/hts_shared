@@ -17,7 +17,8 @@ log = logging.getLogger(__name__)
 class MockBroker(BaseBroker):
     def __init__(self, bus: DataBus) -> None:
         self._bus = bus
-        self._positions: dict[str, int] = {}
+        # symbol → {qty: float, avg_cost: float}
+        self._positions: dict[str, dict] = {}
         self._balance = 100_000.0
         self._feed_threads: dict[str, threading.Thread] = {}
 
@@ -61,23 +62,40 @@ class MockBroker(BaseBroker):
 
     def place_order(self, req: OrderRequest) -> str:
         order_id = str(uuid.uuid4())[:8]
-        log.info("MockBroker: order %s %s %s x%d", order_id, req.side, req.symbol, req.quantity)
+        log.debug("MockBroker: order %s %s %s x%g", order_id, req.side, req.symbol, req.quantity)
 
         # 즉시 체결 시뮬레이션
         fill_price  = round(random.uniform(100, 500), 2)
         commission  = round(req.quantity * 0.005, 4)   # $0.005/주 모의 수수료
         fill_id     = str(uuid.uuid4())[:12]
 
-        # 실현손익: SELL 시 단순 계산 (Mock이므로 avg_cost 없이 랜덤)
+        # ── 포지션 추적 ─────────────────────────────────────
+        sym = req.symbol
         realized_pnl = 0.0
-        if req.side == "SELL":
-            avg_cost = round(fill_price * random.uniform(0.95, 1.05), 2)
+        if req.side == "BUY":
+            prev = self._positions.get(sym, {"qty": 0.0, "avg_cost": 0.0})
+            prev_qty  = prev["qty"]
+            prev_cost = prev["avg_cost"]
+            new_qty   = prev_qty + req.quantity
+            # 평균단가 재계산
+            new_cost = ((prev_qty * prev_cost) + (req.quantity * fill_price)) / new_qty
+            self._positions[sym] = {"qty": new_qty, "avg_cost": round(new_cost, 4)}
+            self._balance -= round(req.quantity * fill_price + commission, 2)
+        elif req.side == "SELL":
+            prev = self._positions.get(sym, {"qty": 0.0, "avg_cost": fill_price})
+            avg_cost     = prev["avg_cost"]
             realized_pnl = round((fill_price - avg_cost) * req.quantity - commission, 2)
+            new_qty      = max(0.0, prev["qty"] - req.quantity)
+            if new_qty <= 1e-8:
+                self._positions.pop(sym, None)
+            else:
+                self._positions[sym] = {"qty": new_qty, "avg_cost": avg_cost}
+            self._balance += round(req.quantity * fill_price - commission, 2)
 
         fill_payload = {
             "fill_id":      fill_id,
             "order_id":     order_id,
-            "symbol":       req.symbol,
+            "symbol":       sym,
             "side":         req.side,
             "qty":          req.quantity,
             "fill_price":   fill_price,
@@ -92,16 +110,58 @@ class MockBroker(BaseBroker):
         # order.filled — DB 저장 + 체결패널용 (집계 토픽)
         self._bus.publish(Topics.ORDER_FILLED, fill_payload)
 
+        # ── 잔고 / 포트폴리오 갱신 발행 ────────────────────
+        self._publish_portfolio(sym, fill_price)
+
         return order_id
 
     def cancel_order(self, order_id: str) -> None:
-        log.info("MockBroker: cancel %s", order_id)
+        log.debug("MockBroker: cancel %s", order_id)
 
     def get_positions(self) -> dict:
         return dict(self._positions)
 
     def get_account(self) -> dict:
         return {"balance": self._balance, "currency": "USD"}
+
+    def _publish_portfolio(self, changed_sym: str, current_price: float) -> None:
+        """체결 후 포지션·잔고·포트폴리오 요약 발행."""
+        # ① 개별 포지션 토픽 (order_panel PnL 표시용)
+        pos = self._positions.get(changed_sym)
+        if pos and pos["qty"] > 0:
+            avg_cost = pos["avg_cost"]
+            pnl      = round((current_price - avg_cost) * pos["qty"], 2)
+            pnl_pct  = round((current_price - avg_cost) / avg_cost * 100, 2) if avg_cost else 0.0
+            self._bus.publish(Topics.portfolio_position(changed_sym), {
+                "symbol":   changed_sym,
+                "qty":      pos["qty"],
+                "avg_cost": avg_cost,
+                "pnl":      pnl,
+                "pnl_pct":  pnl_pct,
+            })
+        else:
+            # 포지션 없음 → 초기화
+            self._bus.publish(Topics.portfolio_position(changed_sym), {
+                "symbol":   changed_sym,
+                "qty":      0,
+                "avg_cost": 0.0,
+                "pnl":      0.0,
+                "pnl_pct":  0.0,
+            })
+
+        # ② 잔고 토픽 (portfolio_panel 잔고 표시용)
+        self._bus.publish(Topics.ACCOUNT_BALANCE, {"balance": round(self._balance, 2)})
+
+        # ③ 포트폴리오 요약 (portfolio_panel 테이블용)
+        positions_list = []
+        for sym, p in self._positions.items():
+            positions_list.append({
+                "symbol":    sym,
+                "qty":       p["qty"],
+                "avg_price": p["avg_cost"],
+                "pnl":       0.0,   # 실시간 가격 없으면 0
+            })
+        self._bus.publish(Topics.PORTFOLIO_SUMMARY, {"positions": positions_list})
 
     # ── 스캐너 Mock ────────────────────────────────────────
     _MOCK_SCAN_POOLS = {
