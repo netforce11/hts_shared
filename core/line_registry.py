@@ -128,6 +128,10 @@ class LineRegistry:
                 self._mine[req_id] = tag
                 self._dirty = True
 
+    def has(self, req_id) -> bool:
+        with self._lock:
+            return req_id in self._mine
+
     def release(self, req_id: int) -> bool:
         with self._lock:
             if self._mine.pop(req_id, None) is None:

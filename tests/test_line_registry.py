@@ -14,7 +14,7 @@ def test_reserve_and_limit():
     assert all(r.try_reserve(i, "chain") for i in range(5))
     assert not r.try_reserve(99, "chain") and r.limit_hit
     assert r.try_reserve(0)                      # 이미 등록 → True(중복 카운트 없음)
-    assert r.local_count() == 5
+    assert r.local_count() == 5 and r.has(0) and not r.has(99)
     r.release(0)
     assert r.local_count() == 4 and not r.limit_hit
     assert r.try_reserve(99)
