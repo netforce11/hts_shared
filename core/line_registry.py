@@ -22,7 +22,7 @@ import os
 import sys
 import threading
 import time
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Hashable, Optional
 
 DEFAULT_LIMIT = 95            # IBKR 기본 100 − 안전 여유 5
 DEFAULT_DIR   = os.path.join(os.path.expanduser("~"), ".hts_ibkr_lines")
@@ -68,7 +68,7 @@ class LineRegistry:
         self.on_change   = on_change
 
         self._lock       = threading.RLock()
-        self._mine: Dict[int, str] = {}
+        self._mine: Dict[Hashable, str] = {}  # 키: reqId(int) 또는 별도 클라이언트용 문자열 키
         self._limit_hit  = False
         self._dirty      = True
         self._last_write = 0.0
@@ -273,3 +273,17 @@ class LineRegistry:
             self._last_write = now
         except Exception:
             pass
+
+
+# ── 프로세스 단일 인스턴스 ─────────────────────────────────────
+_REG: Optional[LineRegistry] = None
+_REG_LOCK = threading.Lock()
+
+
+def get_line_registry(app: Optional[str] = None, **kw) -> Optional[LineRegistry]:
+    """프로세스 공용 레지스트리. app 을 주면 최초 1회 생성, 없으면 이미 만들어진 것만 반환(없으면 None)."""
+    global _REG
+    with _REG_LOCK:
+        if _REG is None and app:
+            _REG = LineRegistry(app, **kw)
+        return _REG
