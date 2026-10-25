@@ -93,3 +93,11 @@ class Topics:
     # ── 스캐너 ────────────────────────────────────────────
     SCANNER_RESULT   = "scanner.result"   # 스캔 결과 도착
     SCANNER_ERROR    = "scanner.error"    # 스캔 오류
+
+    # ── 패널별 피드 구독 (BasePanel.feed_* → 피드가 ref-count) ─────
+    # payload: {"panel_id", "panel_type", "symbol", "kind"}  /  release_all: {"panel_id"}
+    FEED_PANEL_SUBSCRIBE   = "feed.panel.subscribe"
+    FEED_PANEL_UNSUBSCRIBE = "feed.panel.unsubscribe"
+    FEED_PANEL_RELEASE_ALL = "feed.panel.release_all"
+    # 피드 → UI: SubscriptionLedger.snapshot()
+    SUBSCRIPTION_BY_PANEL  = "system.subscription.by_panel"

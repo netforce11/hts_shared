@@ -10,14 +10,26 @@
 #   Esc    패널 숨기기
 
 from __future__ import annotations
+import uuid
+from functools import partial
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMdiSubWindow, QApplication
 from PyQt6.QtCore import Qt, QMetaObject, Q_ARG, pyqtSlot
 from PyQt6.QtGui import QFont, QKeySequence, QShortcut
 from ...core.bus import DataBus
+from ...core.topics import Topics
 
 _FONT_MIN = 7
 _FONT_MAX = 22
 _PANEL_STEP = 40   # px 단위 resize 폭
+
+
+def _release_feed_on_destroy(bus, owner_id: str, *_args) -> None:
+    """destroyed 안전망 — QMdiSubWindow 와 함께 삭제돼 closeEvent 가 안 불린 패널도
+    피드 구독을 반납한다. self 를 붙잡지 않도록 모듈 함수 + partial 로 연결."""
+    try:
+        bus.publish(Topics.FEED_PANEL_RELEASE_ALL, {"panel_id": owner_id})
+    except Exception:
+        pass
 
 
 class BasePanel(QWidget):
@@ -27,6 +39,8 @@ class BasePanel(QWidget):
       - 단축키 추가: register_shortcuts() 오버라이드 후 super() 호출
       - UI 콜백: 반드시 _invoke_main() 경유
       - 패널 종료 시 bus.unsubscribe_all + 단축키 해제 자동 처리
+      - 실시간 시세는 feed_subscribe / feed_unsubscribe 로만 요청
+        (피드가 패널별 ref-count — 패널 종료/삭제 시 자동 반납)
     """
 
     PANEL_ID: str = "base"
@@ -39,6 +53,10 @@ class BasePanel(QWidget):
         self._shortcut_mgr = None
         self._font_size: int = 10
         self._shortcuts: list[QShortcut] = []
+        # 피드 구독 소유자 ID — 인스턴스마다 고유 (같은 패널 여러 개 대응)
+        self._feed_owner_id: str = f"{self.PANEL_ID}_{uuid.uuid4().hex[:6]}"
+        self.destroyed.connect(partial(_release_feed_on_destroy,
+                                       bus, self._feed_owner_id))
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -147,12 +165,34 @@ class BasePanel(QWidget):
             Q_ARG(object, data),
         )
 
+    # ── 피드 구독 (패널 단위 ref-count) ────────────────────
+    @property
+    def feed_owner_id(self) -> str:
+        return self._feed_owner_id
+
+    def feed_subscribe(self, symbol: str, kind: str = "quote") -> None:
+        if symbol:
+            self._bus.publish(Topics.FEED_PANEL_SUBSCRIBE, {
+                "panel_id": self._feed_owner_id, "panel_type": self.PANEL_ID,
+                "symbol": symbol, "kind": kind})
+
+    def feed_unsubscribe(self, symbol: str, kind: str = "quote") -> None:
+        if symbol:
+            self._bus.publish(Topics.FEED_PANEL_UNSUBSCRIBE, {
+                "panel_id": self._feed_owner_id, "symbol": symbol, "kind": kind})
+
+    def feed_release_all(self) -> None:
+        """이 패널의 피드 구독 전부 반납 (중복 호출 무해)."""
+        self._bus.publish(Topics.FEED_PANEL_RELEASE_ALL,
+                          {"panel_id": self._feed_owner_id})
+
     # ── 패널 종료 ──────────────────────────────────────────
     def closeEvent(self, event) -> None:
         self._cleanup()
         super().closeEvent(event)
 
     def _cleanup(self) -> None:
+        self.feed_release_all()
         self._bus.unsubscribe_all(self)
         self._remove_shortcuts()
         if self._shortcut_mgr:
